@@ -6,12 +6,12 @@ import scipy.stats as stats
 
 def hypo_test_on_numerical(datapath, feature):
     # This function finds all pvalues between each persona with the given feature
-    
+
     data = dd.read_csv(datapath,
                        delimiter ="\1",
                        assume_missing=True)
     results = {}
-    
+
     #list for all types of users
     all_persona = list(data.persona.unique().compute())
     all_persona.remove('Unknown')
@@ -28,9 +28,12 @@ def hypo_test_on_numerical(datapath, feature):
                 output = stats.ttest_ind(a = d1, b = d2)
                 #put into results dict
                 results[(i,j)] = output.pvalue
+                print([(i,j)],':'+str(output.pvalue)+'\n')
+                
+
             else:
                 pass
-                
+
     return results
 
 def unsignificants(results_dict, significant_level):
