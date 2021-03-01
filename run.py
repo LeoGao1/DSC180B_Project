@@ -5,7 +5,7 @@ import json
 
 sys.path.insert(0, 'src/classifier')
 sys.path.insert(0, 'src/hypothesis_test')
-sys.path.insert(0, 'src/data_cleaning')
+sys.path.insert(0, 'src/etl')
 
 from classifier import build_classifier
 from hypothesis_tests import hypo_test_on_numerical
