@@ -1,8 +1,6 @@
 import pandas as pd
 
-import dask
-import dask.dataframe as dd
-from dask.distributed import Client, LocalCluster
+
 #import multiprocessing.popen_spawn_win32
 import matplotlib.pyplot as plt
 
@@ -10,14 +8,11 @@ from sklearn.decomposition import PCA
 from sklearn import preprocessing
 
 def data_cleaning (data_path,feature_num = 100):
-    #start a local dask cluster
-    cluster = LocalCluster(n_workers=4)
-    client = Client(cluster)
+
 
     #read data
-    sys_info = dd.read_csv(data_path,
-                           delimiter ="\1",
-                           assume_missing=True)
+    sys_info = pd.read_csv(data_path,
+                           delimiter ="\1")
     print('read data successfully')
 
     #find used columns
@@ -47,7 +42,6 @@ def data_cleaning (data_path,feature_num = 100):
     df = df.dropna()
     df = df[df.persona!= 'Unknown'].reset_index(drop=True)
     df = df[df.processornumber!= 'Unknown'].reset_index(drop=True)
-    df = df.compute()
 
     df['processornumber'] = df['processornumber'].apply(lambda x: x[:2] ).astype('int32',errors='raise')
     df['ram'] =df['ram'].astype('int32')
