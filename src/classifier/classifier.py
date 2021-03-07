@@ -4,6 +4,9 @@ import dask.dataframe as dd
 from dask.distributed import Client, LocalCluster
 import multiprocessing.popen_spawn_win32
 import matplotlib.pyplot as plt
+
+import sys
+
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
@@ -11,152 +14,202 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
-from sklearn.datasets import make_classification
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import f1_score
+from sklearn import svm
+from sklearn.linear_model import SGDClassifier
+from sklearn.linear_model import LogisticRegression
 
 
-def build_classifier(data_path):
-    #start a local dask cluster
-    cluster = LocalCluster(n_workers=4)
-    client = Client(cluster)
+def build_classifier(x,y, classifier_list,output_path, trail_num=5 ):
 
-    knn_param = list(range(2,10))
-    dt_param = list(range(5,10))
-    rf_param = list(range(5,10))
 
-    #read data
-    sys_info = dd.read_csv(data_path,
-                           delimiter ="\1",
-                           assume_missing=True)
-    print('read data successfully')
 
-    #find used columns
-    used_cols =['chassistype',
-                'chassistype_2in1_category',
-                'countryname_normalized',
-                'modelvendor_normalized',
-                'model_normalized',
-                'ram',
-                'os',
-                '#ofcores',
-                'age_category',
-                'graphicsmanuf',
-                'graphicscardclass',
-                'processornumber',
-                'cpuvendor',
-                'cpu_family',
-                'cpu_suffix',
-                'screensize_category',
-                'persona',
-                'processor_line',
-                'vpro_enabled',
-                'discretegraphics']
-    df = sys_info[used_cols]
+    knn_param = list(range(2,50,5))
+    dt_param = list(range(5,100,10))
+    rf_param = list(range(5,100,10))
+    nn_param = list(range(300,800,100))
+    svm_param = [10**i for i in range(-3,4)]
+    sgd_param = list(range(300,1100,100))
+    l_param = [10**i for i in range(-3,4)]
 
-    #cleaning
-    df = df.dropna()
-    df = df[df.persona!= 'Unknown'].reset_index(drop=True)
-    df = df[df.processornumber!= 'Unknown'].reset_index(drop=True)
-    df = df.compute()
-
-    df['processornumber'] = df['processornumber'].apply(lambda x: x[:2] ).astype('int32',errors='raise')
-    df['ram'] =df['ram'].astype('int32')
-    df['#ofcores'] =df['#ofcores'].astype('int32',errors='raise')
-
-    #define the columns with different type
-    used_cols.remove('persona')
-    int_cols = ['ram','#ofcores','processornumber']
-    cat_cols = [i for i in used_cols if i not in int_cols]
-    print('clean data successfully')
-
-    #one hot encoding on cat_cols
-    df = pd.get_dummies(df, columns =cat_cols).reset_index(drop=True)
-
-    #get the x and y
-    y = df['persona'].values
-    temp = list(df.columns.values)
-    temp.remove('persona')
-    x = df[temp].values
-
-    #apply label encoder on persona
-    le = preprocessing.LabelEncoder()
-    y = le.fit_transform(y)
-
-    #apply PCA on y
-    pca = PCA(n_components=100)
-    x = pca.fit_transform(x,y)
-
-    #train test split
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.33, random_state=42)
 
     print('Start to build the classifier and tune the parameter')
 
-    result = pd.DataFrame(columns =['classifier','parameter','train_score','test_score'])
+    result = pd.DataFrame(columns =['trail','classifier','parameter','train_acc','test_acc','train_f1','test_f1'])
 
-    #KNN
-    print("Start KNN")
-    #tune the parameter
-    for i in knn_param:
+    for t in range(trail_num):
+        #train test split
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.33)
 
-        clf1 = KNeighborsClassifier(n_neighbors=i)
-        clf1.fit(x_train, y_train)
+        #KNN
+        if 'knn' in classifier_list:
+            print("Start KNN")
+            #tune the parameter
+            for i in knn_param:
 
-        #get train score
-        y_train_pred = clf1.predict(x_train)
-        train_sc = accuracy_score(y_train, y_train_pred)
+                clf = KNeighborsClassifier(n_neighbors=i)
+                clf.fit(x_train, y_train)
 
-        #get test score
-        y_test_pred = clf1.predict(x_test)
-        test_sc = accuracy_score(y_test, y_test_pred)
+                #get train score
+                y_train_pred = clf.predict(x_train)
+                train_sc = accuracy_score(y_train, y_train_pred)
+                train_f1 = f1_score(y_train, y_train_pred,average='macro')
 
-        temp = {'classifier':'KNN',
-                'parameter': i,
-                'train_score':train_sc,
-                'test_score':test_sc}
-        print(temp)
-        result = result.append(temp,ignore_index=True)
+                #get test score
+                y_test_pred = clf.predict(x_test)
+                test_sc = accuracy_score(y_test, y_test_pred)
+                test_f1 = f1_score(y_test, y_test_pred,average='macro')
+
+                temp = {'trail':t,
+                        'classifier':'KNN',
+                        'parameter': i,
+                        'train_acc':train_sc,
+                        'test_acc':test_sc,
+                        'train_f1':train_f1,
+                        'test_f1':test_f1}
+                print(temp)
+                result = result.append(temp,ignore_index=True)
 
 
-    #DecisionTree
-    print("Start Decision Tree")
-    for i in dt_param:
-        clf2 = DecisionTreeClassifier(max_depth= i)
-        clf2.fit(x_train, y_train)
+        #DecisionTree
+        if 'decision tree' in classifier_list:
+            print("Start Decision Tree")
+            for i in dt_param:
+                clf = DecisionTreeClassifier(max_depth= i)
+                clf.fit(x_train, y_train)
 
-        #get train score
-        y_train_pred = clf2.predict(x_train)
-        train_sc = accuracy_score(y_train, y_train_pred)
+                 #get train score
+                y_train_pred = clf.predict(x_train)
+                train_sc = accuracy_score(y_train, y_train_pred)
+                train_f1 = f1_score(y_train, y_train_pred,average='micro')
 
-        #get test score
-        y_test_pred = clf2.predict(x_test)
-        test_sc = accuracy_score(y_test, y_test_pred)
+                #get test score
+                y_test_pred = clf.predict(x_test)
+                test_sc = accuracy_score(y_test, y_test_pred)
+                test_f1 = f1_score(y_test, y_test_pred,average='micro')
 
-        temp = {'classifier':'Decision Tree',
-                'parameter': i,
-                'train_score':train_sc,
-                'test_score':test_sc}
-        print(temp)
-        result = result.append(temp,ignore_index=True)
+                temp = {'trail':t,
+                        'classifier':'Decision Tree',
+                        'parameter': i,
+                        'train_acc':train_sc,
+                        'test_acc':test_sc,
+                        'train_f1':train_f1,
+                        'test_f1':test_f1}
+                print(temp)
+                result = result.append(temp,ignore_index=True)
 
-    #Random Forest
-    print("Start Random Forest")
-    for i in rf_param:
-        clf3 = RandomForestClassifier(max_depth =i)
-        clf3.fit(x_train, y_train)
+        #Random Forest
+        if 'random forest' in classifier_list:
+            print("Start Random Forest")
+            for i in rf_param:
+                clf = RandomForestClassifier(max_depth =i)
+                clf.fit(x_train, y_train)
 
-        #get train score
-        y_train_pred = clf3.predict(x_train)
-        train_sc = accuracy_score(y_train, y_train_pred)
+                #get train score
+                y_train_pred = clf.predict(x_train)
+                train_sc = accuracy_score(y_train, y_train_pred)
+                train_f1 = f1_score(y_train, y_train_pred,average='macro')
 
-        #get test score
-        y_test_pred = clf3.predict(x_test)
-        test_sc = accuracy_score(y_test, y_test_pred)
+                #get test score
+                y_test_pred = clf.predict(x_test)
+                test_sc = accuracy_score(y_test, y_test_pred)
+                test_f1 = f1_score(y_test, y_test_pred,average='macro')
 
-        temp = {'classifier':'Random Forest',
-                'parameter': i,
-                'train_score':train_sc,
-                'test_score':test_sc}
-        print(temp)
-        result = result.append(temp,ignore_index=True)
+                temp = {'trail':t,
+                        'classifier':'Random Forest',
+                        'parameter': i,
+                        'train_acc':train_sc,
+                        'test_acc':test_sc,
+                        'train_f1':train_f1,
+                        'test_f1':test_f1}
+                print(temp)
+                result = result.append(temp,ignore_index=True)
+
+
+        #neural network
+        if 'neural network' in classifier_list:
+            print("Start Neural network")
+            for i in nn_param:
+                clf = MLPClassifier( max_iter=i)
+                clf.fit(x_train, y_train)
+
+                #get train score
+                y_train_pred = clf.predict(x_train)
+                train_sc = accuracy_score(y_train, y_train_pred)
+                train_f1 = f1_score(y_train, y_train_pred,average='micro')
+
+                #get test score
+                y_test_pred = clf.predict(x_test)
+                test_sc = accuracy_score(y_test, y_test_pred)
+                test_f1 = f1_score(y_test, y_test_pred,average='micro')
+
+                temp = {'trail':t,
+                        'classifier':'Neural network',
+                        'parameter': i,
+                        'train_acc':train_sc,
+                        'test_acc':test_sc,
+                        'train_f1':train_f1,
+                        'test_f1':test_f1}
+                print(temp)
+                result = result.append(temp,ignore_index=True)
+
+
+        #SGD
+        if 'sgd' in classifier_list:
+            print("Start SGD")
+            for i in sgd_param:
+                clf = SGDClassifier( max_iter = i)
+                clf.fit(x_train, y_train)
+
+                #get train score
+                y_train_pred = clf.predict(x_train)
+                train_sc = accuracy_score(y_train, y_train_pred)
+                train_f1 = f1_score(y_train, y_train_pred,average='micro')
+
+                #get test score
+                y_test_pred = clf.predict(x_test)
+                test_sc = accuracy_score(y_test, y_test_pred)
+                test_f1 = f1_score(y_test, y_test_pred,average='micro')
+
+                temp = {'trail':t,
+                        'classifier':'SGD',
+                        'parameter': i,
+                        'train_acc':train_sc,
+                        'test_acc':test_sc,
+                        'train_f1':train_f1,
+                        'test_f1':test_f1}
+                print(temp)
+                result = result.append(temp,ignore_index=True)
+
+
+        #logistic
+        if 'logistic' in classifier_list:
+            print("Start logistic")
+            for i in l_param:
+                clf = LogisticRegression( C = i)
+                clf.fit(x_train, y_train)
+
+                #get train score
+                y_train_pred = clf.predict(x_train)
+                train_sc = accuracy_score(y_train, y_train_pred)
+                train_f1 = f1_score(y_train, y_train_pred,average='micro')
+
+                #get test score
+                y_test_pred = clf.predict(x_test)
+                test_sc = accuracy_score(y_test, y_test_pred)
+                test_f1 = f1_score(y_test, y_test_pred,average='micro')
+
+                temp = {'trail':t,
+                        'classifier':'logistic',
+                        'parameter': i,
+                        'train_acc':train_sc,
+                        'test_acc':test_sc,
+                        'train_f1':train_f1,
+                        'test_f1':test_f1}
+                print(temp)
+                result = result.append(temp,ignore_index=True)
 
     print("All Done!")
+    result.to_csv(output_path, index = False)
     return result

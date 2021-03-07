@@ -6,4 +6,7 @@ In the PC industry, there are different computer setups for omnifarious PC users
 # How To Run: Classification of Your Own Audio Files
 1. Clone this repository.
 2. On the command line, navigate to this repository locally.
-3. on the command line, use *python run.py test* runs the pipeline with the test-project target. This will run the test build classifier. Or use *python run.py build-classifier* to build all classifier. or use *python run.py hypo-test* to run the hypothesis test on column 'ram' with other columns.
+3. on the command line, use
+    *python run.py test* runs the pipeline with the test-project target. This will run the test build classifier.
+    *python run.py build-classifier* to build all classifier.
+    *python run.py hypo-test* to run the hypothesis test on column 'ram' with other columns.

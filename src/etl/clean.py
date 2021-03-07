@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn import preprocessing
 
-def data_cleaning (data_path, output_path,feature_num = 100):
+def data_cleaning (data_path,feature_num = 100):
     #start a local dask cluster
     cluster = LocalCluster(n_workers=4)
     client = Client(cluster)
@@ -77,11 +77,6 @@ def data_cleaning (data_path, output_path,feature_num = 100):
 
     print('get features successfully')
 
-    # x_df = pd.DataFrame(x)
-    # y_df = pd.DataFrame(y)
-    #
-    # x_df.to_csv(output_path + 'x_df.csv', index = False)
-    # y_df.to_csv(output_path + 'y_df.csv', index = False)
 
 
     return x,y
