@@ -7,7 +7,11 @@ In the PC industry, there are different computer setups for omnifarious PC users
 1. Clone this repository.
 2. On the command line, navigate to this repository locally.
 3. on the command line, use
+
     *python run.py test* runs the pipeline with the test-project target. This will run the test build classifier. THIS PROCESS WOULD LAST HOURS!!!
+    
     *python run.py build-classifier* to build all classifier. THIS PROCESS WOULD LAST HOURS!!!
+    
     *python run.py hypo-test* to run the hypothesis test on column 'ram' with other columns.
+    
     *python run.py chi-square-test* to run the hypothesis test on column 'ram' with other columns.
